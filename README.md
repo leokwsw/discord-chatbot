@@ -1,5 +1,10 @@
 # Discord ChatBot
 
+> To-Do List
+> - [x] discord chatbot
+> - [ ] use mongo to store memory
+> - [ ] support ChatGPT Proxy
+
 > Supported tools list
 > - Open Weather API
 > - Google Programmable Search Engine API
