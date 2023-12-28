@@ -11,14 +11,4 @@ class DiscordClient(discord.Client):
         self.synced = False
         self.added = False
         self.tree = discord.app_commands.CommandTree(self)
-        self.activity = discord.Activity(type=discord.ActivityType.watching, name="/chat | /reset | /imagine | /clear")
-
-    # async def on_ready(self):
-    #     await self.wait_until_ready()
-    #     logger.info("Syncing")
-    #     if not self.synced:
-    #         await self.tree.sync()
-    #         self.synced = True
-    #     if not self.added:
-    #         self.added = True
-    #     logger.info(f"Synced, {self.user} is running!")
+        self.activity = discord.Activity(type=discord.ActivityType.watching, name="looking you chatroom")

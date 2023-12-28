@@ -1,7 +1,9 @@
 import json
+import os
 from typing import List, Dict, Literal
 import openai
-from openai.types.chat import ChatCompletionMessage
+from openai._types import NotGiven, NOT_GIVEN
+from openai.types.chat import ChatCompletionMessage, ChatCompletionToolChoiceOptionParam, ChatCompletionToolParam
 
 from src.modelInterface import ModelInterface
 from src.tools.google_search import search_google
@@ -13,18 +15,19 @@ class OpenAIModel(ModelInterface):
             self,
             api_key: str,
             model_engine: str,
+            image_model_engine: str,
             image_size: Literal["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"] = '512x512'
     ):
         openai.api_key = api_key
         self.model_engine = model_engine
+        self.image_model_engine = image_model_engine
         self.image_size = image_size
 
     async def chat_completion(self, messages: List[Dict] or ChatCompletionMessage) -> (str, str):
-        response = openai.chat.completions.create(
-            model=self.model_engine,
-            messages=messages,
-            tool_choice="auto",
-            tools=[{
+        tools = []
+
+        if os.getenv("OPEN_WEATHER_API") is not None:
+            tools.append({
                 "type": "function",
                 "function": {
                     "name": "get_current_weather",
@@ -41,7 +44,10 @@ class OpenAIModel(ModelInterface):
                         "required": ["location"],
                     },
                 },
-            }, {
+            })
+
+        if os.getenv("GOOGLE_CX") is not None and os.getenv("GOOGLE_SEARCH_API_KEY") is not None:
+            tools.append({
                 "type": "function",
                 "function": {
                     "name": "search_google",
@@ -57,15 +63,28 @@ class OpenAIModel(ModelInterface):
                     },
                     "required": ["keyword"],
                 }
-            }]
+            })
+
+        tool_choices: ChatCompletionToolChoiceOptionParam or NotGiven = NOT_GIVEN
+
+        if len(tools) > 0:
+            tool_choices = 'auto'
+        else:
+            tools = NOT_GIVEN
+
+        response = openai.chat.completions.create(
+            model=self.model_engine,
+            messages=messages,
+            tool_choice=tool_choices,
+            tools=tools
         )
         response_message = response.choices[0].message
         tool_calls = response_message.tool_calls
 
         if tool_calls:
             available_functions = {
-                "get_current_weather": self.get_current_weather,
-                "search_google": self.search_google
+                "get_current_weather": get_weather,
+                "search_google": search_google
             }
             messages.append(response_message)
             for tool_call in tool_calls:
@@ -74,14 +93,14 @@ class OpenAIModel(ModelInterface):
                 function_args = json.loads(tool_call.function.arguments)
                 if function_name == "get_current_weather":
                     function_response = await function_to_call(
-                        location=function_args.get("location")
+                        city=function_args.get("location")
                     )
                 elif function_name == "search_google":
                     function_response = await function_to_call(
                         keyword=function_args.get("keyword")
                     )
                 else:
-                    function_response = "Unknown tool call"
+                    function_response = {}
 
                 if function_response != {}:
                     messages.append(
@@ -101,15 +120,10 @@ class OpenAIModel(ModelInterface):
 
         return response_message.role, response_message.content
 
-    async def get_current_weather(self, location):
-        return await get_weather(location)
-
-    async def search_google(self, keyword):
-        return await search_google(keyword)
-
 
 def image_generation(self, prompt: str) -> str:
     response = openai.images.generate(
+        model=self.image_model_engine,
         prompt=prompt,
         n=1,
         size=self.image_size

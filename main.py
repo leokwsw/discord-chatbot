@@ -13,7 +13,11 @@ from src.memory import Memory
 
 load_dotenv()
 
-models = OpenAIModel(api_key=os.getenv('OPENAI_API_KEY'), model_engine=os.getenv('OPENAI_MODEL_ENGINE'))
+models = OpenAIModel(
+    api_key=os.getenv('OPENAI_API_KEY'),
+    model_engine=os.getenv('OPENAI_MODEL_ENGINE'),
+    image_model_engine=os.getenv("OPENAI_IMAGE_MODEL_ENGINE")
+)
 
 config_dir = os.path.abspath(f"{__file__}/../")
 prompt_name = 'system_prompt.txt'
@@ -79,13 +83,18 @@ def run():
     async def remove(interaction: discord.Interaction):
         user_id = interaction.user.id
         logger.info(f"removing memory from {user_id}")
-        try:
-            chatgpt.clear()
+        discord_admin = os.getenv("DISCORD_ADMIN").split(",")
+        if user_id in discord_admin:
+            try:
+                chatgpt.clear()
+                await interaction.response.defer(ephemeral=True)
+                await interaction.followup.send(f'> remove ChatGPT conversation history < - <@{user_id}>')
+            except Exception as e:
+                logger.error(f"Error resetting memory: {e}")
+                await interaction.followup.send('> Oops! Something went wrong. <')
+        else:
             await interaction.response.defer(ephemeral=True)
-            await interaction.followup.send(f'> remove ChatGPT conversation history < - <@{user_id}>')
-        except Exception as e:
-            logger.error(f"Error resetting memory: {e}")
-            await interaction.followup.send('> Oops! Something went wrong. <')
+            await interaction.followup.send('> Oops! You are not admin <')
 
     @client.event
     async def on_message(message):
@@ -95,15 +104,15 @@ def run():
         username = str(message.author.name)
         user_message = str(message.content)
 
-        async with message.channel.typing():
-            receive = await chatgpt.get_response(user_id, user_message)
-            if message.channel.id == int(os.getenv('DISCORD_CHANNEL_ID')):
+        if message.channel.id == int(os.getenv('DISCORD_CHANNEL_ID')):
+            async with message.channel.typing():
+                receive = await chatgpt.get_response(user_id, user_message)
                 await sender.send_message(message, user_id=user_id, user_message=user_message, receive=receive,
                                           followup=False)
 
             logger.info(f"\x1b[31m{username}\x1b[0m : '{user_message}' ({message.channel})")
 
-    client.run(os.getenv('DISCORD_BOT_TOKEN'))
+        client.run(os.getenv('DISCORD_BOT_TOKEN'))
 
 
 if __name__ == '__main__':

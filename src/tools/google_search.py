@@ -1,5 +1,6 @@
 import json
 import os
+from urllib.parse import urlencode
 
 import requests
 
@@ -11,7 +12,17 @@ async def search_google(keyword: str):
     query = keyword
     page = 1
     start = (page - 1) * 10 + 1
-    url = f"https://www.googleapis.com/customsearch/v1?key={os.getenv('GOOGLE_SEARCH_API_KEY')}&cx={os.getenv('GOOGLE_CSE_ID')}&q={query}&start={start}"
+
+    params = {
+        'key': os.environ['GOOGLE_SEARCH_API_KEY'],
+        'cx': os.environ['GOOGLE_CX'],
+        'q': query,
+        'start': start
+    }
+
+    params_str = urlencode(params)
+
+    url = f"https://www.googleapis.com/customsearch/v1?{params_str}"
     data = requests.get(url).json()
     search_items = data.get("items")
 
