@@ -3,7 +3,7 @@
 > Supported tools list
 > - Open Weather API
 > - Google Programmable Search Engine API
-> - ... (you can request in issue, i will try my best to add it)
+> - ... (you can request another tools in issue, I will try my best to add it to this chatbot)
 
 ## Set up
 
